@@ -26,7 +26,7 @@ _$*
 *.ln
 core
 # CVS default ignores end
-obj
 bin
+obj
 opencow.ncb
 opencow.opt

@@ -39,16 +39,18 @@
 #include <stdlib.h>
 #include <errno.h>
 
+#define ARRAY_SIZE(x)   (sizeof(x)/sizeof((x)[0]))
+
+
 // ----------------------------------------------------------------------------
 // UNICODE -> MBCS conversion and general buffer
 
-template<int STACK_SIZE>
 class CMbcsBuffer
 {
 public:
     CMbcsBuffer()
         : mBuffer(mStackBuffer),
-          mBufferSize(STACK_SIZE),
+          mBufferSize(sizeof(mStackBuffer)),
           mLength(0)
     {
         mStackBuffer[0] = '\0';
@@ -60,63 +62,11 @@ public:
             ::free(mBuffer);
     }
 
-    bool SetCapacity(int aMinCapacity)
-    {
-        if (aMinCapacity > mBufferSize)
-        {
-            if (mBuffer != mStackBuffer)
-                ::free(mBuffer);
-
-            mLength = 0;
-            mBufferSize = 0;
-
-            mBuffer = (char *) ::malloc(aMinCapacity);
-            if (!mBuffer) {
-                SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-                errno = ENOMEM;
-                return false;
-            }
-            *mBuffer = '\0';
-
-            mBufferSize = aMinCapacity;
-        }
-
-        return true;
-    }
+    bool SetCapacity(int aMinCapacity);
 
     // if the source string is NULL then we will return NULL, regardless of the setting
     // for aMinCapacity. If you want a resizable buffer then use SetCapacity() instead.
-    bool FromUnicode(LPCWSTR aString = 0, int aStringLen = -1, int aMinCapacity = 0)
-    {
-        if (!aString) {
-            SetNull();
-            return true;
-        }
-
-        if (aStringLen == -1)
-            aStringLen = ::lstrlenW(aString) + 1;
-
-        int aRequiredLen = ::WideCharToMultiByte(CP_ACP, 0, aString, aStringLen, NULL, 0, NULL, NULL);
-        if (aRequiredLen < 1) {
-            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            errno = ENOMEM;
-            return false;
-        }
-
-        if (aRequiredLen > aMinCapacity)
-            aMinCapacity = aRequiredLen;
-
-        mLength = aRequiredLen - 1; // don't include the null byte
-
-        if (!SetCapacity(aMinCapacity)) {
-            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            errno = ENOMEM;
-            return false;
-        }
-
-        ::WideCharToMultiByte(CP_ACP, 0, aString, aStringLen, mBuffer, mBufferSize, NULL, NULL);
-        return true;
-    }
+    bool FromUnicode(LPCWSTR aString = 0, int aStringLen = -1, int aMinCapacity = 0);
 
     void SetNull()
     {
@@ -135,11 +85,10 @@ public:
     int Length() const      { return mLength; }
 
 private:
-    char    mStackBuffer[STACK_SIZE];
+    char    mStackBuffer[256];
     char *  mBuffer;
     int     mBufferSize;
     int     mLength;
 };
-
 
 #endif // INCLUDED_MbcsBuffer
